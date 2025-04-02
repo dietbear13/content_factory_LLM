@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import logging
 
 # Импорт агентов
-from agents.headline_generator import HeadlineGenerator
+# from agents.headline_generator import HeadlineGenerator
 from agents.content_generator import ContentGenerator
 from agents.factchecking_editor import FactCheckingEditor
 from agents.style_editor import StyleEditor
@@ -30,28 +30,38 @@ def generate_headlines():
     Обрабатывает форму: получает тему, генерирует список заголовков
     и перенаправляет на страницу редактирования заголовков.
     """
-    theme = request.form.get("theme_input", "").strip()
-    if not theme:
+    raw_input = request.form.get("theme_input", "").strip()
+    if not raw_input:
         return "Тема не может быть пустой!", 400
 
-    # Примерные доп. параметры — глубина или кол-во заголовков (необязательно)
+    # Разделение H1 и H2-заголовков
+    if ":" in raw_input:
+        theme, raw_h2s = raw_input.split(":", 1)
+        theme = theme.strip()
+        user_headlines = [h.strip() for h in raw_h2s.split(";") if h.strip()]
+    else:
+        theme = raw_input
+        user_headlines = []
+
+    # Кол-во заголовков
     num_headings = request.form.get("num_headings", "5")
     try:
         num_headings = int(num_headings)
     except ValueError:
-        num_headings = 5  # значение по умолчанию
+        num_headings = 5
 
-    # Генерация заголовков через HeadlineGenerator
-    hg = HeadlineGenerator()
-    try:
-        headlines = hg.run(theme=theme, num_headlines=num_headings)
-    except Exception as e:
-        logging.error(f"Ошибка при генерации заголовков: {e}")
-        return "Произошла ошибка при генерации заголовков", 500
+    # Если заголовки не указаны — парсим из Google
+    if not user_headlines:
+        from tools.parsers.google_parser import parse_google_headlines
+        try:
+            user_headlines = parse_google_headlines(theme, num_results=num_headings)
+        except Exception as e:
+            logging.error(f"Ошибка при парсинге заголовков из Google: {e}")
+            user_headlines = []
 
-    # Сохраняем заголовки в сессии, чтобы отредактировать или подтвердить
+    # Сохраняем в сессию
     session["theme"] = theme
-    session["headlines"] = headlines
+    session["headlines"] = user_headlines
 
     return redirect(url_for("edit_headlines"))
 

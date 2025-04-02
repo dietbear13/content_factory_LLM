@@ -70,9 +70,6 @@ class ContentGenerator:
 
 Если нужно, включай ссылки на источники в формате {citations_style}, только если {use_citations} = true.
 
-У тебя есть knowledge_base:
-{kb_info}
-
 Дополнительные фразы для введения:
 {intro_phrases_list}
 
@@ -84,6 +81,9 @@ class ContentGenerator:
 
 Работай аккуратно, старайся писать связно и по сути.
         """
+
+        # У тебя есть knowledge_base:
+        # {kb_info}
 
         self.human_message_template = """
 Напиши развернутый контент для заголовка "{headline}" в контексте глобальной темы "{global_theme}".
