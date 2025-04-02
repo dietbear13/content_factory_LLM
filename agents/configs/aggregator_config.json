@@ -1,0 +1,33 @@
+{
+  "model_name": "gpt-4",
+  "temperature": 0.7,
+  "top_p": 1.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+
+  "intro": "Это вводная часть нашей статьи, где мы расскажем, о чём пойдёт речь.",
+  "outro": "На этом мы завершаем наш обзор. Благодарим за прочтение!",
+
+  "use_table_of_contents": true,
+  "toc_title": "Содержание статьи",
+  "number_sections": true,
+
+  "transitions": [
+    "Теперь перейдем к следующему аспекту:",
+    "Рассмотрим новую сторону вопроса:",
+    "Далее обратим внимание на:"
+  ],
+
+  "final_checklist": {
+    "include_disclaimer": true,
+    "disclaimer_text": "Обратите внимание: статья носит информационный характер.",
+    "check_coherence": true,
+    "add_author_signature": false
+  },
+
+  "section_separator": "\n\n---\n\n",
+  "heading_format": "## {index}. {headline}",
+
+  "reserve_space_for_images": false,
+  "images_placeholder_text": "Здесь будет вставлена иллюстрация."
+}

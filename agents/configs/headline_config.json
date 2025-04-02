@@ -1,0 +1,34 @@
+{
+  "base_prompt": "Ты профессиональный автор и эксперт. На основе темы '{theme}' создай список подробных заголовков h2 (подтем). Количество заголовков: {num_headlines}.",
+  "max_headlines": 10,
+
+  "style": "creative",
+  "detail_level": "advanced",
+
+  "knowledge_base": [
+    {
+      "id": "doc1",
+      "title": "Основы кибербезопасности",
+      "keywords": ["безопасность", "кибербезопасность", "угрозы"]
+    },
+    {
+      "id": "doc2",
+      "title": "Современные подходы к защите сетей",
+      "keywords": ["сети", "взлом", "защита"]
+    }
+  ],
+
+  "criteria": {
+    "avoid_repetition": true,
+    "unique_perspective": true,
+    "use_subheadings": false,
+    "language_register": "neutral",
+    "minimum_words_per_headline": 2
+  },
+
+  "additional_guidelines": [
+    "Не повторять одинаковые ключевые слова в разных заголовках.",
+    "Избегать слишком общих фраз, стараться уточнять тему подзаголовка.",
+    "Заголовки содержат ключевые фразы."
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "model_name": "gpt-4",
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+
+  "factcheck_prompt": "Проверь фактическую корректность текста и исправь неточности.",
+  "strictness_level": 8,
+  "use_external_apis": false,
+
+  "knowledge_base_sources": [
+    "doc1", "doc2", "doc3", "doc4"
+  ],
+
+  "fallback_strategies": [
+    "Если точный факт не подтверждается, переформулировать нейтрально.",
+    "Если данные противоречивы, оставить пометку [Требуется дополнительная проверка]."
+  ],
+
+  "error_handling": {
+    "on_critical_error": "raise_exception",
+    "on_minor_error": "insert_comment"
+  },
+
+  "checklist": [
+    "Даты и числа",
+    "Термины и определения",
+    "Статистические данные",
+    "Ссылки на внешние источники"
+  ]
+}

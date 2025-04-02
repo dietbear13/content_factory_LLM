@@ -1,0 +1,50 @@
+{
+  "model_name": "gpt-4",
+  "temperature": 0.7,
+  "top_p": 1.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+
+  "content_prompt": "На основе заголовка '{headline}' (тема: '{theme}') напиши развернутый текст.",
+  "default_length": 400,
+
+  "style": "informative",
+  "tone": "semi-formal",
+  "use_citations": true,
+  "citations_style": "APA",
+
+  "knowledge_base": [
+    {
+      "id": "doc3",
+      "title": "Статистика кибератак за последние годы",
+      "keywords": ["статистика", "атаки", "анализ"],
+      "excerpt": "Согласно недавним отчётам, в 2022 году число кибератак выросло на 15%."
+    },
+    {
+      "id": "doc4",
+      "title": "Практические советы по защите персональных данных",
+      "keywords": ["защита", "персональные данные", "советы"]
+    }
+  ],
+
+  "criteria": {
+    "min_paragraphs": 2,
+    "max_paragraphs": 6,
+    "use_examples": true,
+    "use_numerical_data": true
+  },
+
+  "intro_phrases": [
+    "Давайте начнем с общего понимания:",
+    "В первую очередь, стоит отметить:"
+  ],
+  "closing_phrases": [
+    "Таким образом, мы видим, что...",
+    "В итоге можно сказать..."
+  ],
+
+  "fallback_strategies": [
+    "Если информация не найдена, дай общий обзор.",
+    "При противоречиях укажи, что существуют разные мнения."
+  ]
+}

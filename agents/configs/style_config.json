@@ -1,0 +1,28 @@
+{
+  "model_name": "gpt-4",
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+
+  "style_prompt": "Приведи текст к единому стилю и стандарту.",
+  "tone": "formal",
+  "preferred_person": "third_person",
+  "max_line_length": 120,
+
+  "additional_rules": [
+    "Избегать слишком длинных предложений (более 25 слов).",
+    "Сохранять сложные термины, если они важны для понимания.",
+    "Не использовать просторечные выражения."
+  ],
+
+  "grammar_check": {
+    "language": "ru",
+    "enable_spell_check": true,
+    "enable_punctuation_check": true,
+    "replace_slang": true
+  },
+
+  "use_simplification": false,
+  "avoid_jargon": false
+}
