@@ -1,8 +1,11 @@
 # tools/parsers/google_parser.py
 
+import os
 import requests
 import xml.etree.ElementTree as ET
+from dotenv import load_dotenv
 
+load_dotenv()  # Загружаем переменные из .env
 
 def parse_google_headlines(query: str, num_results: int = 10) -> list:
     """
@@ -12,9 +15,13 @@ def parse_google_headlines(query: str, num_results: int = 10) -> list:
     :param num_results: Кол-во заголовков
     :return: Список строк — заголовков
     """
-    USER = "YOUR_USER"  # Замени на актуальные
-    KEY = "YOUR_KEY"
-    url = f"https://xmlriver.com/search/xml?user={USER}&key={KEY}&q={query}&maxresults={num_results}"
+    user = os.getenv("XMLRIVER_USER")
+    key = os.getenv("XMLRIVER_KEY")
+
+    if not user or not key:
+        raise ValueError("Не заданы XMLRIVER_USER или XMLRIVER_KEY в .env")
+
+    url = f"https://xmlriver.com/search/xml?user={user}&key={key}&q={query}&maxresults={num_results}"
 
     try:
         response = requests.get(url)
