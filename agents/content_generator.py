@@ -9,12 +9,13 @@ from langchain.prompts import (
     HumanMessagePromptTemplate
 )
 from langchain.chains import LLMChain
+from tools.collectors.fact_collector import FactCollector, fetch_articles_from_xmlriver
 
 
 class ContentGenerator:
     """
     Генерирует информативный текст по заголовку в заданной теме.
-    Упор на факты, избегание шаблонов, структурированный результат.
+    Встраивает релевантные факты, избегает шаблонов и лишнего.
     """
 
     def __init__(self, config_path=None):
@@ -38,6 +39,9 @@ class ContentGenerator:
         self.criteria = self.config.get("criteria", {})
         self.use_citations = self.config.get("use_citations", False)
         self.citations_style = self.config.get("citations_style", "APA")
+        self.use_fact_tool = self.config.get("use_fact_tool", True)
+
+        self.fact_collector = FactCollector(model_name=self.model_name)
 
         self.llm = ChatOpenAI(
             model_name=self.model_name,
@@ -65,9 +69,10 @@ class ContentGenerator:
 {criteria_block}
 
 📌 Работа с фактами:
+- Используй эти факты, если они даны:
+{relevant_facts}
 - Если {use_citations} = true — вставляй ссылки в стиле {citations_style}.
-- Если информация не подтверждена — формулируй нейтрально.
-- Если нет данных — дай обзор на основе общих принципов (fallback).
+- Если фактов нет — пиши по общим принципам.
 """
 
         self.human_message_template = """
@@ -80,7 +85,6 @@ class ContentGenerator:
 Объём: ~{default_length} слов.
 """
 
-        # Формируем текст критериев
         criteria_lines = []
         if self.criteria.get("use_examples"):
             criteria_lines.append("- Приводи примеры.")
@@ -99,6 +103,15 @@ class ContentGenerator:
     def run(self, headline: str, global_theme: str) -> str:
         logging.info(f"[ContentGenerator] Генерация текста: «{headline}» (в теме: {global_theme})")
 
+        facts = []
+        if self.use_fact_tool:
+            logging.info("[ContentGenerator] Получение фактов через XMLriver и LLM...")
+            theme_for_search = headline.split(":")[0] if ":" in headline else headline
+            articles = fetch_articles_from_xmlriver(theme_for_search, limit=6)
+            facts = self.fact_collector.extract_facts(articles, subheading=headline)
+
+        facts_text = "\n".join(f"- {fact}" for fact in facts) if facts else "Нет доступных фактов."
+
         chain_input = {
             "style": self.style,
             "tone": self.tone,
@@ -107,7 +120,8 @@ class ContentGenerator:
             "headline": headline,
             "global_theme": global_theme,
             "default_length": self.default_length,
-            "criteria_block": self.criteria_block
+            "criteria_block": self.criteria_block,
+            "relevant_facts": facts_text
         }
 
         chain = LLMChain(llm=self.llm, prompt=self.chat_prompt)

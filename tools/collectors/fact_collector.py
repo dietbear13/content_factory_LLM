@@ -1,44 +1,58 @@
-import requests
+# tools/collectors/fact_collector.py
+
+import logging
 from tools.parsers.google_parser import parse_google_headlines
-from trafilatura import extract, fetch_url
+from tools.parsers.article_parser import get_article_html, parse_article_content
+
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 from langchain.chains import LLMChain
 
 
 def fetch_articles_from_xmlriver(theme: str, limit: int = 6) -> list[str]:
+    """
+    Получает заголовки из Google XMLriver и парсит содержимое статей.
+    Возвращает список очищенных текстов для дальнейшего анализа.
+    """
     headlines = parse_google_headlines(query=theme, num_results=limit)
     texts = []
-    for h in headlines:
-        url = fetch_url(h)
-        if url:
-            content = extract(url)
-            if content:
-                texts.append(content.strip())
+
+    for url in headlines:
+        try:
+            html = get_article_html(url)
+            if html:
+                parsed = parse_article_content(html)
+                if parsed:
+                    texts.append(parsed.strip())
+        except Exception as e:
+            logging.warning(f"[FactCollector] Ошибка при обработке URL {url}: {e}")
+
     return texts
 
 
 class FactCollector:
     """
-    Используется агентами для получения фактов по подзаголовку на основе поисковых данных.
+    Инструмент сбора релевантных фактов по подзаголовку из набора текстов.
+    Используется агентами генерации и редактуры.
     """
 
     def __init__(self, model_name="gpt-4"):
         self.llm = ChatOpenAI(model_name=model_name, temperature=0.2)
 
         self.system_prompt = """
-Ты — ассистент-аналитик. Твоя задача — извлекать важные факты из текстов.
-Дай 3–5 конкретных, проверяемых фактов, относящихся к теме: "{subheading}".
-Факты должны быть краткими, точными и полезными для статьи.
+Ты — аналитик. Изучи представленные тексты и выдели 3–5 кратких, важных и проверяемых фактов,
+относящихся к теме подзаголовка: "{subheading}".
 
-Если фактов недостаточно — напиши только те, что есть.
+Если фактов мало — покажи только найденные.
+Формат ответа — маркированный список.
 """
 
         self.human_prompt = """
-Вот статьи (объединённый текст):
+Вот собранные фрагменты из разных источников:
+
 {context}
 
-Тема подзаголовка: {subheading}
+Подзаголовок: {subheading}
 """
 
         self.prompt = ChatPromptTemplate.from_messages([
@@ -47,6 +61,9 @@ class FactCollector:
         ])
 
     def extract_facts(self, full_texts: list[str], subheading: str) -> list[str]:
+        """
+        Прогоняет собранные тексты через LLM и возвращает отфильтрованные факты.
+        """
         combined_text = "\n\n".join(full_texts)
         chain = LLMChain(llm=self.llm, prompt=self.prompt)
         result = chain.run({"context": combined_text, "subheading": subheading})
