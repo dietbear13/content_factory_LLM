@@ -1,12 +1,13 @@
 # agents/article_aggregator.py
 
 import logging
+from tools.filters.text_cleaner import clean_text
 
 
 class ArticleAggregator:
     """
     Собирает финальную статью из заголовков и текстов.
-    Без использования LLM.
+    Без использования LLM. Применяет фильтр текста (анти-клише) на последнем этапе.
     """
 
     def __init__(self):
@@ -28,7 +29,8 @@ class ArticleAggregator:
         # Вставим абзац-вступление (первый параграф первого контента)
         if sections and sections[0].get("content"):
             intro = sections[0]["content"].strip().split("\n")[0]
-            lines.append(intro + "\n")
+            cleaned_intro = clean_text(intro)
+            lines.append(cleaned_intro + "\n")
 
         for i, block in enumerate(sections, 1):
             headline = block.get("headline", "").strip()
@@ -37,8 +39,10 @@ class ArticleAggregator:
             if not headline or not content:
                 continue
 
+            cleaned_content = clean_text(content)
+
             lines.append(f"## {headline}\n")
-            lines.append(content + "\n")
+            lines.append(cleaned_content + "\n")
 
         final_text = "\n".join(lines).strip()
         return final_text
