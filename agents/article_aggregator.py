@@ -39,10 +39,13 @@ class ArticleAggregator:
             if not headline or not content:
                 continue
 
-            cleaned_content = clean_text(content)
-
             lines.append(f"## {headline}\n")
-            lines.append(cleaned_content + "\n")
+
+            paragraphs = content.split("\n\n")  # <-- абзацы
+            for para in paragraphs:
+                cleaned_para = clean_text(para.strip())
+                if cleaned_para:
+                    lines.append(cleaned_para + "\n")
 
         final_text = "\n".join(lines).strip()
         return final_text
