@@ -56,6 +56,11 @@ class ContentGenerator:
 Стиль: {style}. Тон: {tone}.
 Следуй принципам «Пиши, сокращай».
 
+📌 Пример стиля:
+Вот пример текста, в стиле которого стоит писать. Не копируй содержание — следуй структуре, стилистике и формулировкам:
+
+{example_text}
+
 📌 Пиши только по существу:
 - Без вступлений, общих фраз и переходов между разделами.
 - Не используй клише и шаблонные фразы.
@@ -100,7 +105,7 @@ class ContentGenerator:
             HumanMessagePromptTemplate.from_template(self.human_message_template)
         ])
 
-    def run(self, headline: str, global_theme: str) -> str:
+    def run(self, headline: str, global_theme: str, example_text: str = "") -> str:
         logging.info(f"[ContentGenerator] Генерация текста: «{headline}» (в теме: {global_theme})")
 
         facts = []
@@ -121,7 +126,8 @@ class ContentGenerator:
             "global_theme": global_theme,
             "default_length": self.default_length,
             "criteria_block": self.criteria_block,
-            "relevant_facts": facts_text
+            "relevant_facts": facts_text,
+            "example_text": example_text.strip()
         }
 
         chain = LLMChain(llm=self.llm, prompt=self.chat_prompt)
