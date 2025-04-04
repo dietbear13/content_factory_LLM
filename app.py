@@ -1,3 +1,5 @@
+# app.py
+
 from flask import Flask, render_template, request, redirect, url_for, session
 import logging
 
@@ -50,15 +52,40 @@ def finalize_headlines():
     edited_headlines = [h.strip() for h in request.form.getlist("headline") if h.strip()]
     session["headlines"] = edited_headlines
 
+    # --- NEW CODE: собираем сырые факты и фильтруем ---
+    from tools.collectors.fact_collector import fetch_articles_from_xmlriver, FactCollector
+    from agents.fact_compressor import FactFilter
+
+    # 1) Получаем из Google тексты по всей теме (до двоеточия) — а не по каждому H2
+    articles = fetch_articles_from_xmlriver(theme, limit=6)
+    collector = FactCollector()
+    raw_facts = collector.collect_raw_facts(articles)  # много "сырых" текстовых фрагментов
+
+    # 2) Запускаем фильтратор:
+    fact_filter = FactFilter()
+    filtered_facts_dict = fact_filter.run(raw_facts, edited_headlines)
+    # Сохраним в сессии, если захотим потом использовать повторно:
+    session["filtered_facts_by_h2"] = filtered_facts_dict
+
     content_list = []
 
     cg = ContentGenerator()
     fce = FactCheckingEditor()
     se = StyleEditor()
 
+    # 3) Для каждого заголовка используем только факты из filtered_facts_dict
     for headline in edited_headlines:
+        # Берём факты, относящиеся к этому заголовку
+        facts_for_this_headline = filtered_facts_dict.get(headline, [])
+
         try:
-            raw = cg.run(headline=headline, global_theme=theme)
+            # вместо старого cg.run(...) вызываем новую функцию
+            raw = cg.run_with_facts(
+                headline=headline,
+                global_theme=theme,
+                example_text="",
+                filtered_facts=facts_for_this_headline
+            )
             checked = fce.run(raw)
             polished = se.run(checked)
             content_list.append({"headline": headline, "content": polished})

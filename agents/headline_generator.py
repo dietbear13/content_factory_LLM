@@ -33,9 +33,9 @@ def run(theme_input: str, num_headlines: int = 5) -> tuple[str, list[Any] | list
 
     if not h2_list:
         # Здесь можно подключить парсер из tools/parsers/google_parser.py
-        from tools.parsers.google_parser import parse_google_headlines
+        from tools.parsers.google_parser import parse_google_results
         try:
-            h2_list = parse_google_headlines(query=theme, num_results=num_headlines)
+            h2_list = parse_google_results(query=theme, num_results=num_headlines)
         except Exception as e:
             print(f"Ошибка при вызове парсера: {e}")
             h2_list = []

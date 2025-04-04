@@ -1,3 +1,5 @@
+# content_generator.py
+
 import json
 import os
 import logging
@@ -115,6 +117,31 @@ class ContentGenerator:
             facts = self.fact_collector.extract_facts(articles, subheading=headline)
 
         facts_text = "\n".join(f"- {fact}" for fact in facts) if facts else "Нет доступных фактов."
+
+        chain_input = {
+            "style": self.style,
+            "tone": self.tone,
+            "use_citations": str(self.use_citations).lower(),
+            "citations_style": self.citations_style,
+            "headline": headline,
+            "global_theme": global_theme,
+            "default_length": self.default_length,
+            "criteria_block": self.criteria_block,
+            "relevant_facts": facts_text,
+            "example_text": example_text.strip()
+        }
+
+        chain = LLMChain(llm=self.llm, prompt=self.chat_prompt)
+        return chain.run(chain_input)
+
+    # --- NEW CODE ---
+    def run_with_facts(self, headline: str, global_theme: str, example_text: str, filtered_facts: list[str]) -> str:
+        """
+        Аналогично run(), но факты передаются извне — те, что были уже отфильтрованы и переформулированы FactFilter'ом.
+        """
+        logging.info(f"[ContentGenerator] Генерация текста с заранее отфильтрованными фактами: '{headline}'")
+
+        facts_text = "\n".join(f"- {fact}" for fact in filtered_facts) if filtered_facts else "Нет доступных фактов."
 
         chain_input = {
             "style": self.style,

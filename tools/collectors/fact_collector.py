@@ -1,7 +1,8 @@
+# fact_collector.py
 # tools/collectors/fact_collector.py
 
 import logging
-from tools.parsers.google_parser import parse_google_headlines
+from tools.parsers.google_parser import parse_google_results
 from tools.parsers.article_parser import get_article_html, parse_article_content
 
 from langchain.chat_models import ChatOpenAI
@@ -14,7 +15,7 @@ def fetch_articles_from_xmlriver(theme: str, limit: int = 6) -> list[str]:
     Получает заголовки из Google XMLriver и парсит содержимое статей.
     Возвращает список очищенных текстов для дальнейшего анализа.
     """
-    headlines = parse_google_headlines(query=theme, num_results=limit)
+    headlines = parse_google_results(query=theme, num_results=limit)
     texts = []
 
     for url in headlines:
@@ -63,8 +64,27 @@ class FactCollector:
     def extract_facts(self, full_texts: list[str], subheading: str) -> list[str]:
         """
         Прогоняет собранные тексты через LLM и возвращает отфильтрованные факты.
+        (по умолчанию 3-5 шт.)
         """
         combined_text = "\n\n".join(full_texts)
         chain = LLMChain(llm=self.llm, prompt=self.prompt)
         result = chain.run({"context": combined_text, "subheading": subheading})
         return [line.strip("-• ").strip() for line in result.strip().split("\n") if line.strip()]
+
+    # --- NEW CODE ---
+    def collect_raw_facts(self, full_texts: list[str]) -> list[str]:
+        """
+        Собирает "сырые" факты/фрагменты напрямую без сильной фильтрации.
+        - Просто берём каждый блок текста и разбиваем его на предложения ~<= 2-3 строки,
+          чтобы потом FactFilter мог с ними работать.
+        """
+        logging.info("[FactCollector] Сбор 'сырых' фактов (без жёсткого лимита).")
+        raw_facts = []
+        for text in full_texts:
+            # простое разбиение по абзацам
+            blocks = text.split("\n\n")
+            for block in blocks:
+                block = block.strip()
+                if len(block) > 20:  # примитивная проверка, чтобы отбросить пустое
+                    raw_facts.append(block)
+        return raw_facts
