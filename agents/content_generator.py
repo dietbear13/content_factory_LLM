@@ -1,9 +1,6 @@
-# content_generator.py
-
 import json
 import os
 import logging
-
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import (
     ChatPromptTemplate,
@@ -21,23 +18,23 @@ class ContentGenerator:
     """
 
     def __init__(self, config_path=None):
-        if config_path is None:
-            script_dir = os.path.dirname(os.path.realpath(__file__))
-            config_path = os.path.join(script_dir, "configs", "content_config.json")
-
+        config_path = config_path or os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "configs", "content_config.json"
+        )
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
 
+        # Модель и параметры
         self.model_name = self.config.get("model_name", "gpt-4")
         self.temperature = self.config.get("temperature", 0.3)
         self.top_p = self.config.get("top_p", 1.0)
         self.presence_penalty = self.config.get("presence_penalty", 0.0)
         self.frequency_penalty = self.config.get("frequency_penalty", 0.0)
 
+        # Стиль и настройки генерации
         self.default_length = self.config.get("default_length", 400)
         self.style = self.config.get("style", "информативный")
         self.tone = self.config.get("tone", "нейтральный")
-
         self.criteria = self.config.get("criteria", {})
         self.use_citations = self.config.get("use_citations", False)
         self.citations_style = self.config.get("citations_style", "APA")
@@ -53,7 +50,21 @@ class ContentGenerator:
             frequency_penalty=self.frequency_penalty
         )
 
-        self.system_message_template = """
+        self.criteria_block = self._build_criteria_block()
+        self.chat_prompt = self._build_prompt()
+
+    def _build_criteria_block(self) -> str:
+        lines = []
+        if self.criteria.get("use_examples"):
+            lines.append("- Приводи примеры.")
+        if self.criteria.get("use_numerical_data"):
+            lines.append("- Используй числовые данные.")
+        if self.criteria.get("min_paragraphs") or self.criteria.get("max_paragraphs"):
+            lines.append(f"- От {self.criteria.get('min_paragraphs', 2)} до {self.criteria.get('max_paragraphs', 4)} абзацев.")
+        return "\n".join(lines) if lines else "- Нет дополнительных критериев."
+
+    def _build_prompt(self):
+        system_template = """
 Ты — опытный автор фанат методов написания Максима Ильяхова «Пиши, сокращай», создающий информативные тексты на русском языке.
 Стиль: {style}. Тон: {tone}.
 
@@ -80,8 +91,7 @@ class ContentGenerator:
 - Если {use_citations} = true — вставляй ссылки в стиле {citations_style}.
 - Если фактов нет — пиши по общим принципам.
 """
-
-        self.human_message_template = """
+        human_template = """
 Напиши развёрнутый контент (3–4 абзаца) по заголовку:
 "{headline}"
 
@@ -91,70 +101,46 @@ class ContentGenerator:
 Объём: ~{default_length} слов.
 """
 
-        criteria_lines = []
-        if self.criteria.get("use_examples"):
-            criteria_lines.append("- Приводи примеры.")
-        if self.criteria.get("use_numerical_data"):
-            criteria_lines.append("- Используй числовые данные.")
-        if self.criteria.get("min_paragraphs") or self.criteria.get("max_paragraphs"):
-            criteria_lines.append(f"- От {self.criteria.get('min_paragraphs', 2)} до {self.criteria.get('max_paragraphs', 4)} абзацев.")
-
-        self.criteria_block = "\n".join(criteria_lines) if criteria_lines else "- Нет дополнительных критериев."
-
-        self.chat_prompt = ChatPromptTemplate.from_messages([
-            SystemMessagePromptTemplate.from_template(self.system_message_template),
-            HumanMessagePromptTemplate.from_template(self.human_message_template)
+        return ChatPromptTemplate.from_messages([
+            SystemMessagePromptTemplate.from_template(system_template),
+            HumanMessagePromptTemplate.from_template(human_template)
         ])
+
+    def _prepare_facts(self, headline: str) -> list[str]:
+        if not self.use_fact_tool:
+            return []
+
+        logging.info("[ContentGenerator] Получение фактов через XMLriver и LLM...")
+        theme_for_search = headline.split(":")[0] if ":" in headline else headline
+        articles = fetch_articles_from_xmlriver(theme_for_search, limit=6)
+        return self.fact_collector.extract_facts(articles, subheading=headline)
+
+    def _build_chain_input(self, headline: str, global_theme: str, example_text: str, facts: list[str]) -> dict:
+        facts_text = "\n".join(f"- {fact}" for fact in facts) if facts else "Нет доступных фактов."
+
+        return {
+            "style": self.style,
+            "tone": self.tone,
+            "use_citations": str(self.use_citations).lower(),
+            "citations_style": self.citations_style,
+            "headline": headline,
+            "global_theme": global_theme,
+            "default_length": self.default_length,
+            "criteria_block": self.criteria_block,
+            "relevant_facts": facts_text,
+            "example_text": example_text.strip()
+        }
 
     def run(self, headline: str, global_theme: str, example_text: str = "") -> str:
         logging.info(f"[ContentGenerator] Генерация текста: «{headline}» (в теме: {global_theme})")
+        facts = self._prepare_facts(headline)
+        return self._run_chain(headline, global_theme, example_text, facts)
 
-        facts = []
-        if self.use_fact_tool:
-            logging.info("[ContentGenerator] Получение фактов через XMLriver и LLM...")
-            theme_for_search = headline.split(":")[0] if ":" in headline else headline
-            articles = fetch_articles_from_xmlriver(theme_for_search, limit=6)
-            facts = self.fact_collector.extract_facts(articles, subheading=headline)
-
-        facts_text = "\n".join(f"- {fact}" for fact in facts) if facts else "Нет доступных фактов."
-
-        chain_input = {
-            "style": self.style,
-            "tone": self.tone,
-            "use_citations": str(self.use_citations).lower(),
-            "citations_style": self.citations_style,
-            "headline": headline,
-            "global_theme": global_theme,
-            "default_length": self.default_length,
-            "criteria_block": self.criteria_block,
-            "relevant_facts": facts_text,
-            "example_text": example_text.strip()
-        }
-
-        chain = LLMChain(llm=self.llm, prompt=self.chat_prompt)
-        return chain.run(chain_input)
-
-    # --- NEW CODE ---
     def run_with_facts(self, headline: str, global_theme: str, example_text: str, filtered_facts: list[str]) -> str:
-        """
-        Аналогично run(), но факты передаются извне — те, что были уже отфильтрованы и переформулированы FactFilter'ом.
-        """
         logging.info(f"[ContentGenerator] Генерация текста с заранее отфильтрованными фактами: '{headline}'")
+        return self._run_chain(headline, global_theme, example_text, filtered_facts)
 
-        facts_text = "\n".join(f"- {fact}" for fact in filtered_facts) if filtered_facts else "Нет доступных фактов."
-
-        chain_input = {
-            "style": self.style,
-            "tone": self.tone,
-            "use_citations": str(self.use_citations).lower(),
-            "citations_style": self.citations_style,
-            "headline": headline,
-            "global_theme": global_theme,
-            "default_length": self.default_length,
-            "criteria_block": self.criteria_block,
-            "relevant_facts": facts_text,
-            "example_text": example_text.strip()
-        }
-
+    def _run_chain(self, headline: str, global_theme: str, example_text: str, facts: list[str]) -> str:
+        chain_input = self._build_chain_input(headline, global_theme, example_text, facts)
         chain = LLMChain(llm=self.llm, prompt=self.chat_prompt)
         return chain.run(chain_input)

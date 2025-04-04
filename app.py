@@ -3,11 +3,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import logging
 
-from agents.content_generator import ContentGenerator
-from agents.factchecking_editor import FactCheckingEditor
-from agents.style_editor import StyleEditor
-from agents.article_aggregator import ArticleAggregator
 from agents.headline_generator import run as parse_theme_input
+from services.generation_pipeline import generate_article
 
 app = Flask(__name__)
 app.secret_key = "SUPER_SECRET_KEY_CHANGE_IT"
@@ -52,55 +49,11 @@ def finalize_headlines():
     edited_headlines = [h.strip() for h in request.form.getlist("headline") if h.strip()]
     session["headlines"] = edited_headlines
 
-    # --- NEW CODE: собираем сырые факты и фильтруем ---
-    from tools.collectors.fact_collector import fetch_articles_from_xmlriver, FactCollector
-    from agents.fact_compressor import FactFilter
+    final_article, filtered_facts = generate_article(theme, edited_headlines)
 
-    # 1) Получаем из Google тексты по всей теме (до двоеточия) — а не по каждому H2
-    articles = fetch_articles_from_xmlriver(theme, limit=6)
-    collector = FactCollector()
-    raw_facts = collector.collect_raw_facts(articles)  # много "сырых" текстовых фрагментов
-
-    # 2) Запускаем фильтратор:
-    fact_filter = FactFilter()
-    filtered_facts_dict = fact_filter.run(raw_facts, edited_headlines)
-    # Сохраним в сессии, если захотим потом использовать повторно:
-    session["filtered_facts_by_h2"] = filtered_facts_dict
-
-    content_list = []
-
-    cg = ContentGenerator()
-    fce = FactCheckingEditor()
-    se = StyleEditor()
-
-    # 3) Для каждого заголовка используем только факты из filtered_facts_dict
-    for headline in edited_headlines:
-        # Берём факты, относящиеся к этому заголовку
-        facts_for_this_headline = filtered_facts_dict.get(headline, [])
-
-        try:
-            # вместо старого cg.run(...) вызываем новую функцию
-            raw = cg.run_with_facts(
-                headline=headline,
-                global_theme=theme,
-                example_text="",
-                filtered_facts=facts_for_this_headline
-            )
-            checked = fce.run(raw)
-            polished = se.run(checked)
-            content_list.append({"headline": headline, "content": polished})
-        except Exception as e:
-            logging.error(f"Ошибка в блоке '{headline}': {e}")
-            content_list.append({"headline": headline, "content": f"Ошибка генерации: {e}"})
-
-    aa = ArticleAggregator()
-    try:
-        final_article = aa.run(content_list, theme=theme)
-    except Exception as e:
-        logging.error(f"Ошибка агрегации: {e}")
-        final_article = "Не удалось собрать статью."
-
+    session["filtered_facts_by_h2"] = filtered_facts
     session["final_article"] = final_article
+
     return redirect(url_for("result"))
 
 
