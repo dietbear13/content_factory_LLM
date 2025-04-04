@@ -15,10 +15,11 @@ def fetch_articles_from_xmlriver(theme: str, limit: int = 6) -> list[str]:
     Получает заголовки из Google XMLriver и парсит содержимое статей.
     Возвращает список очищенных текстов для дальнейшего анализа.
     """
-    headlines = parse_google_results(query=theme, num_results=limit)
+    headlines = parse_google_results(query=theme)
     texts = []
 
-    for url in headlines:
+    for item in headlines:
+        url = item["url"]
         try:
             html = get_article_html(url)
             if html:

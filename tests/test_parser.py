@@ -16,6 +16,7 @@ logging.basicConfig(
 # Загрузка переменных среды
 load_dotenv()
 
+
 def test_parsers(query="искусственный интеллект", num_results=5):
     logging.info(f"🔍 Запрос к XMLriver: '{query}' (результатов: {num_results})")
 
